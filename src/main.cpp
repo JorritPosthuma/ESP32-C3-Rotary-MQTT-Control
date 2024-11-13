@@ -1,68 +1,98 @@
 #include <Arduino.h>
+#include <RotaryEncoder.h>
 #include <WiFi.h>
-// #include <Rot
+#include <esp_sleep.h>
 
-const int pinA = 7;        // S1
-const int pinB = 9;        // S2
-const int buttonPin = 10;  // Key
+// Define the pins for the encoder
+const int PIN_A = GPIO_NUM_1;       // S1
+const int PIN_B = GPIO_NUM_2;       // S2
+const int PIN_BUTTON = GPIO_NUM_0;  // Key
 
+// Initialize encoder position and activity timer
 int encoderPosition = 0;
+unsigned long lastActivityTime = 0;  // Tracks the last time of activity
+const unsigned long inactivityThreshold = 5000;  // 5 seconds threshold
 
-int lastEncoded = 0;
+// Initialize RotaryEncoder object
+RotaryEncoder encoder(PIN_A, PIN_B, RotaryEncoder::LatchMode::TWO03);
 
-void updateEncoder();
+// Function to handle encoder updates, placed in IRAM for fast execution
+void IRAM_ATTR updateEncoder() {
+    encoder.tick();               // Update the encoder state
+    lastActivityTime = millis();  // Reset activity timer on rotation
+}
 
 void setup() {
     Serial.begin(115200);
     pinMode(8, OUTPUT);
 
+    // Connect to WiFi
     WiFi.mode(WIFI_STA);
     WiFi.begin("Aether", "cityoftheamstel");
 
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
-        Serial.println("Connecting to WiFi..");
+        Serial.println("Connecting to WiFi...");
     }
 
     Serial.println("Connected to the WiFi network");
     Serial.println(WiFi.localIP());
 
-    pinMode(pinA, INPUT);       // Encoder channel A (S1)
-    pinMode(pinB, INPUT);       // Encoder channel B (S2)
-    pinMode(buttonPin, INPUT);  // Key (button)
+    // Setup the encoder pins
+    pinMode(PIN_A, INPUT);
+    pinMode(PIN_B, INPUT);
+    pinMode(PIN_BUTTON, INPUT);  // Key (button)
 
-    // Attach interrupts to encoder pins
-    attachInterrupt(digitalPinToInterrupt(pinA), updateEncoder, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(pinB), updateEncoder, CHANGE);
+    // Attach interrupts to encoder pins with the IRAM-based update function
+    attachInterrupt(digitalPinToInterrupt(PIN_A), updateEncoder, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_B), updateEncoder, CHANGE);
+
+    lastActivityTime = millis();  // Initialize the activity timer
 }
 
 void loop() {
-    int buttonState = digitalRead(buttonPin);
+    static int lastPosition = 0;
+    encoder.tick();  // Manually update encoder in the loop as well
+
+    int newPosition = encoder.getPosition();
+    if (newPosition != lastPosition) {
+        encoderPosition = newPosition;
+        Serial.print("Encoder position: ");
+        Serial.println(encoderPosition);
+
+        // Detect rotation direction
+        if (encoder.getDirection() == RotaryEncoder::Direction::CLOCKWISE) {
+            Serial.println("Encoder rotated clockwise");
+        } else if (encoder.getDirection() ==
+                   RotaryEncoder::Direction::COUNTERCLOCKWISE) {
+            Serial.println("Encoder rotated counter-clockwise");
+        }
+
+        lastPosition = newPosition;
+        lastActivityTime = millis();  // Reset activity timer on movement
+    }
+
+    // Check the button state
+    int buttonState = digitalRead(PIN_BUTTON);
     if (buttonState == LOW) {  // Button is pressed (active LOW)
         Serial.println("Button pressed");
-    }
-    delay(100);
-}
-
-void updateEncoder() {
-    // Read both channels
-    int MSB = digitalRead(pinA);  // Most significant bit
-    int LSB = digitalRead(pinB);  // Least significant bit
-
-    int encoded = (MSB << 1) | LSB;
-    int sum = (lastEncoded << 2) | encoded;
-
-    // Determine rotation direction
-    if (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) {
-        encoderPosition++;
-        Serial.print(encoderPosition);
-        Serial.println(" | Encoder rotated clockwise");
-    }
-    if (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) {
-        encoderPosition--;
-        Serial.print(encoderPosition);
-        Serial.println(" | Encoder rotated counter-clockwise");
+        lastActivityTime = millis();  // Reset activity timer on button press
     }
 
-    lastEncoded = encoded;
+    // Check for inactivity and enter deep sleep if needed
+    if (millis() - lastActivityTime > inactivityThreshold) {
+        Serial.println("Entering deep sleep due to inactivity...");
+
+        gpio_deep_sleep_hold_dis();
+        esp_sleep_config_gpio_isolate();
+        gpio_set_direction(gpio_num_t(0), GPIO_MODE_INPUT);
+        gpio_set_direction(gpio_num_t(1), GPIO_MODE_INPUT);
+        gpio_set_direction(gpio_num_t(2), GPIO_MODE_INPUT);
+        esp_deep_sleep_enable_gpio_wakeup(1 << 0, ESP_GPIO_WAKEUP_GPIO_LOW);
+        esp_deep_sleep_enable_gpio_wakeup(1 << 1, ESP_GPIO_WAKEUP_GPIO_LOW);
+        esp_deep_sleep_enable_gpio_wakeup(1 << 2, ESP_GPIO_WAKEUP_GPIO_LOW);
+        esp_deep_sleep_start();
+    }
+
+    delay(100);  // Debounce delay for the button
 }
