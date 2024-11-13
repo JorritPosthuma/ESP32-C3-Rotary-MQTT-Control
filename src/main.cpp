@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <PubSubClient.h>
 #include <RotaryEncoder.h>
 #include <WiFi.h>
 #include <esp_sleep.h>
@@ -8,6 +9,15 @@ const int PIN_A = GPIO_NUM_1;       // S1
 const int PIN_B = GPIO_NUM_2;       // S2
 const int PIN_BUTTON = GPIO_NUM_0;  // Key
 
+// WiFi and MQTT settings
+const char* ssid = "Aether";
+const char* password = "cityoftheamstel";
+const char* mqttServer = "192.168.1.174";  // Replace with your MQTT broker IP
+const int mqttPort = 1883;
+const char* mqttTopic = "homeassistant/sensor/encoder";
+const char* mqttUser = "mqtt";
+const char* mqttPassword = "r37zQSVw";
+
 // Initialize encoder position and activity timer
 int encoderPosition = 0;
 unsigned long lastActivityTime = 0;  // Tracks the last time of activity
@@ -16,10 +26,29 @@ const unsigned long inactivityThreshold = 5000;  // 5 seconds threshold
 // Initialize RotaryEncoder object
 RotaryEncoder encoder(PIN_A, PIN_B, RotaryEncoder::LatchMode::TWO03);
 
+// WiFi and MQTT clients
+WiFiClient wifiClient;
+PubSubClient mqttClient(wifiClient);
+
 // Function to handle encoder updates, placed in IRAM for fast execution
 void IRAM_ATTR updateEncoder() {
     encoder.tick();               // Update the encoder state
     lastActivityTime = millis();  // Reset activity timer on rotation
+}
+
+// MQTT reconnect function
+void reconnectMQTT() {
+    while (!mqttClient.connected()) {
+        Serial.print("Attempting MQTT connection...");
+        if (mqttClient.connect("ESP32Client", mqttUser, mqttPassword)) {
+            Serial.println("connected to MQTT broker");
+        } else {
+            Serial.print("failed, rc=");
+            Serial.print(mqttClient.state());
+            Serial.println(" try again in 5 seconds");
+            delay(5000);
+        }
+    }
 }
 
 void setup() {
@@ -28,7 +57,7 @@ void setup() {
 
     // Connect to WiFi
     WiFi.mode(WIFI_STA);
-    WiFi.begin("Aether", "cityoftheamstel");
+    WiFi.begin(ssid, password);
 
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
@@ -37,6 +66,9 @@ void setup() {
 
     Serial.println("Connected to the WiFi network");
     Serial.println(WiFi.localIP());
+
+    // Setup MQTT
+    mqttClient.setServer(mqttServer, mqttPort);
 
     // Setup the encoder pins
     pinMode(PIN_A, INPUT);
@@ -54,6 +86,11 @@ void loop() {
     static int lastPosition = 0;
     encoder.tick();  // Manually update encoder in the loop as well
 
+    if (!mqttClient.connected()) {
+        reconnectMQTT();
+    }
+    mqttClient.loop();
+
     int newPosition = encoder.getPosition();
     if (newPosition != lastPosition) {
         encoderPosition = newPosition;
@@ -61,12 +98,21 @@ void loop() {
         Serial.println(encoderPosition);
 
         // Detect rotation direction
+        String direction = "";
         if (encoder.getDirection() == RotaryEncoder::Direction::CLOCKWISE) {
             Serial.println("Encoder rotated clockwise");
-        } else if (encoder.getDirection() ==
-                   RotaryEncoder::Direction::COUNTERCLOCKWISE) {
+            direction = "clockwise";
+        } else {
             Serial.println("Encoder rotated counter-clockwise");
+            direction = "counterclockwise";
         }
+
+        // Create JSON payload for MQTT
+        String payload = "{\"position\":" + String(encoderPosition) +
+                         ",\"direction\":\"" + direction + "\"}";
+
+        // Publish MQTT message in JSON format
+        mqttClient.publish(mqttTopic, payload.c_str());
 
         lastPosition = newPosition;
         lastActivityTime = millis();  // Reset activity timer on movement
