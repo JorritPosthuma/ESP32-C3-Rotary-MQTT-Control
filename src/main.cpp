@@ -14,13 +14,14 @@ const char* ssid = "Aether";
 const char* password = "cityoftheamstel";
 const char* mqttServer = "192.168.1.174";  // Replace with your MQTT broker IP
 const int mqttPort = 1883;
-const char* mqttTopic = "homeassistant/sensor/encoder";
+const char* mqttConfigTopic = "homeassistant/sensor/encoder/config";
+const char* mqttStateTopic = "homeassistant/sensor/encoder/state";
 const char* mqttUser = "mqtt";
 const char* mqttPassword = "r37zQSVw";
 
 // Initialize encoder position and activity timer
 int encoderPosition = 0;
-unsigned long lastActivityTime = 0;  // Tracks the last time of activity
+unsigned long lastActivityTime = 0;
 const unsigned long inactivityThreshold = 5000;  // 5 seconds threshold
 
 // Initialize RotaryEncoder object
@@ -30,10 +31,21 @@ RotaryEncoder encoder(PIN_A, PIN_B, RotaryEncoder::LatchMode::TWO03);
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
-// Function to handle encoder updates, placed in IRAM for fast execution
+// Function to handle encoder updates
 void IRAM_ATTR updateEncoder() {
-    encoder.tick();               // Update the encoder state
-    lastActivityTime = millis();  // Reset activity timer on rotation
+    encoder.tick();
+    lastActivityTime = millis();
+}
+
+// Publish MQTT configuration message
+void publishConfig() {
+    String configPayload = "{\"name\": \"Rotary Encoder\","
+                           "\"unique_id\": \"rotary_encoder\","
+                           "\"state_topic\": \"" + String(mqttStateTopic) + "\","
+                           "\"value_template\": \"{{ value_json.position }}\""
+                            "}";
+
+    mqttClient.publish(mqttConfigTopic, configPayload.c_str(), true);  // Retain message for HA discovery
 }
 
 // MQTT reconnect function
@@ -42,6 +54,7 @@ void reconnectMQTT() {
         Serial.print("Attempting MQTT connection...");
         if (mqttClient.connect("ESP32Client", mqttUser, mqttPassword)) {
             Serial.println("connected to MQTT broker");
+            publishConfig();  // Publish configuration on connection
         } else {
             Serial.print("failed, rc=");
             Serial.print(mqttClient.state());
@@ -58,33 +71,31 @@ void setup() {
     // Connect to WiFi
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
-
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.println("Connecting to WiFi...");
     }
 
-    Serial.println("Connected to the WiFi network");
+    Serial.println("Connected to WiFi");
     Serial.println(WiFi.localIP());
 
     // Setup MQTT
     mqttClient.setServer(mqttServer, mqttPort);
 
-    // Setup the encoder pins
+    // Setup encoder pins
     pinMode(PIN_A, INPUT);
     pinMode(PIN_B, INPUT);
-    pinMode(PIN_BUTTON, INPUT);  // Key (button)
+    pinMode(PIN_BUTTON, INPUT);
 
-    // Attach interrupts to encoder pins with the IRAM-based update function
     attachInterrupt(digitalPinToInterrupt(PIN_A), updateEncoder, CHANGE);
     attachInterrupt(digitalPinToInterrupt(PIN_B), updateEncoder, CHANGE);
 
-    lastActivityTime = millis();  // Initialize the activity timer
+    lastActivityTime = millis();
 }
 
 void loop() {
     static int lastPosition = 0;
-    encoder.tick();  // Manually update encoder in the loop as well
+    encoder.tick();  // Manually update encoder in loop
 
     if (!mqttClient.connected()) {
         reconnectMQTT();
@@ -94,41 +105,31 @@ void loop() {
     int newPosition = encoder.getPosition();
     if (newPosition != lastPosition) {
         encoderPosition = newPosition;
+        String direction = (encoder.getDirection() == RotaryEncoder::Direction::CLOCKWISE) ? "clockwise" : "counterclockwise";
+
+        // State JSON payload for MQTT
+        String payload = "{\"position\":" + String(encoderPosition) + "}";
+
+        // Publish the state message
+        mqttClient.publish(mqttStateTopic, payload.c_str());
+
         Serial.print("Encoder position: ");
         Serial.println(encoderPosition);
-
-        // Detect rotation direction
-        String direction = "";
-        if (encoder.getDirection() == RotaryEncoder::Direction::CLOCKWISE) {
-            Serial.println("Encoder rotated clockwise");
-            direction = "clockwise";
-        } else {
-            Serial.println("Encoder rotated counter-clockwise");
-            direction = "counterclockwise";
-        }
-
-        // Create JSON payload for MQTT
-        String payload = "{\"position\":" + String(encoderPosition) +
-                         ",\"direction\":\"" + direction + "\"}";
-
-        // Publish MQTT message in JSON format
-        mqttClient.publish(mqttTopic, payload.c_str());
+        Serial.println("Encoder direction: " + direction);
 
         lastPosition = newPosition;
-        lastActivityTime = millis();  // Reset activity timer on movement
+        lastActivityTime = millis();
     }
 
-    // Check the button state
-    int buttonState = digitalRead(PIN_BUTTON);
-    if (buttonState == LOW) {  // Button is pressed (active LOW)
+    // Check button state
+    if (digitalRead(PIN_BUTTON) == LOW) {
         Serial.println("Button pressed");
-        lastActivityTime = millis();  // Reset activity timer on button press
+        lastActivityTime = millis();
     }
 
     // Check for inactivity and enter deep sleep if needed
     if (millis() - lastActivityTime > inactivityThreshold) {
         Serial.println("Entering deep sleep due to inactivity...");
-
         gpio_deep_sleep_hold_dis();
         esp_sleep_config_gpio_isolate();
         gpio_set_direction(gpio_num_t(0), GPIO_MODE_INPUT);
@@ -140,5 +141,5 @@ void loop() {
         esp_deep_sleep_start();
     }
 
-    delay(100);  // Debounce delay for the button
+    delay(100);  // Debounce delay
 }
