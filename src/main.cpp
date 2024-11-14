@@ -3,6 +3,7 @@
 #include <RotaryEncoder.h>
 #include <WiFi.h>
 #include <esp_sleep.h>
+#include <Preferences.h>  // Include Preferences library for NVS
 
 // Define the pins for the encoder
 const int PIN_A = GPIO_NUM_1;       // S1
@@ -10,14 +11,14 @@ const int PIN_B = GPIO_NUM_2;       // S2
 const int PIN_BUTTON = GPIO_NUM_0;  // Key
 
 // WiFi and MQTT settings
-const char* ssid = "Aether";
-const char* password = "cityoftheamstel";
-const char* mqttServer = "192.168.1.174";  // Replace with your MQTT broker IP
-const int mqttPort = 1883;
-const char* mqttConfigTopic = "homeassistant/sensor/encoder/config";
-const char* mqttStateTopic = "homeassistant/sensor/encoder/state";
-const char* mqttUser = "mqtt";
-const char* mqttPassword = "r37zQSVw";
+const char* WIFI_SSID = "Aether";
+const char* WIFI_PASSWORD = "cityoftheamstel";
+const char* MQTT_SERVER = "192.168.1.174";  // Replace with your MQTT broker IP
+const int MQTT_PORT = 1883;
+const char* MQTT_CONFIG_TOPIC = "homeassistant/sensor/encoder/config";
+const char* MQTT_STATE_TOPIC = "homeassistant/sensor/encoder/state";
+const char* MQTT_USER = "mqtt";
+const char* MQTT_PASSWORD = "r37zQSVw";
 
 // Initialize encoder position and activity timer
 int encoderPosition = 0;
@@ -31,6 +32,9 @@ RotaryEncoder encoder(PIN_A, PIN_B, RotaryEncoder::LatchMode::TWO03);
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
+// NVS storage preferences
+Preferences preferences;
+
 // Function to handle encoder updates
 void IRAM_ATTR updateEncoder() {
     encoder.tick();
@@ -41,18 +45,18 @@ void IRAM_ATTR updateEncoder() {
 void publishConfig() {
     String configPayload = "{\"name\": \"Rotary Encoder\","
                            "\"unique_id\": \"rotary_encoder\","
-                           "\"state_topic\": \"" + String(mqttStateTopic) + "\","
+                           "\"state_topic\": \"" + String(MQTT_STATE_TOPIC) + "\","
                            "\"value_template\": \"{{ value_json.position }}\""
                             "}";
 
-    mqttClient.publish(mqttConfigTopic, configPayload.c_str(), true);  // Retain message for HA discovery
+    mqttClient.publish(MQTT_CONFIG_TOPIC, configPayload.c_str(), true);  // Retain message for HA discovery
 }
 
 // MQTT reconnect function
 void reconnectMQTT() {
     while (!mqttClient.connected()) {
         Serial.print("Attempting MQTT connection...");
-        if (mqttClient.connect("ESP32Client", mqttUser, mqttPassword)) {
+        if (mqttClient.connect("ESP32Client", MQTT_USER, MQTT_PASSWORD)) {
             Serial.println("connected to MQTT broker");
             publishConfig();  // Publish configuration on connection
         } else {
@@ -68,9 +72,14 @@ void setup() {
     Serial.begin(115200);
     pinMode(8, OUTPUT);
 
+    // Initialize NVS
+    preferences.begin("encoder", false);
+    encoderPosition = preferences.getInt("position", 0);  // Retrieve saved position
+    encoder.setPosition(encoderPosition);  // Set encoder to last saved position
+
     // Connect to WiFi
     WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid, password);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.println("Connecting to WiFi...");
@@ -80,7 +89,7 @@ void setup() {
     Serial.println(WiFi.localIP());
 
     // Setup MQTT
-    mqttClient.setServer(mqttServer, mqttPort);
+    mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
 
     // Setup encoder pins
     pinMode(PIN_A, INPUT);
@@ -94,7 +103,7 @@ void setup() {
 }
 
 void loop() {
-    static int lastPosition = 0;
+    static int lastPosition = encoderPosition;  // Start with restored position
     encoder.tick();  // Manually update encoder in loop
 
     if (!mqttClient.connected()) {
@@ -111,7 +120,7 @@ void loop() {
         String payload = "{\"position\":" + String(encoderPosition) + "}";
 
         // Publish the state message
-        mqttClient.publish(mqttStateTopic, payload.c_str());
+        mqttClient.publish(MQTT_STATE_TOPIC, payload.c_str());
 
         Serial.print("Encoder position: ");
         Serial.println(encoderPosition);
@@ -130,6 +139,11 @@ void loop() {
     // Check for inactivity and enter deep sleep if needed
     if (millis() - lastActivityTime > inactivityThreshold) {
         Serial.println("Entering deep sleep due to inactivity...");
+        
+        // Save the current position to NVS
+        preferences.putInt("position", encoderPosition);
+        preferences.end();  // Close preferences
+
         gpio_deep_sleep_hold_dis();
         esp_sleep_config_gpio_isolate();
         gpio_set_direction(gpio_num_t(0), GPIO_MODE_INPUT);
