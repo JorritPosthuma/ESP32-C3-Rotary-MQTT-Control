@@ -1,10 +1,10 @@
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <Preferences.h>
 #include <PubSubClient.h>
 #include <RotaryEncoder.h>
 #include <WiFi.h>
 #include <esp_sleep.h>
-#include <ArduinoJson.h>
 
 // Encoder pins
 constexpr int PIN_A = GPIO_NUM_0;       // Encoder channel A
@@ -22,9 +22,9 @@ constexpr char MQTT_CONFIG_TOPIC[] = "homeassistant/sensor/encoder/config";
 constexpr char MQTT_STATE_TOPIC[] = "homeassistant/sensor/encoder/state";
 
 // Encoder and inactivity settings
-constexpr unsigned long INACTIVITY_THRESHOLD_MS = 30 * 1000; // 30 seconds
-constexpr int ENCODER_MIN = 0;                              // Min position
-constexpr int ENCODER_MAX = 255;                            // Max position
+constexpr unsigned long INACTIVITY_THRESHOLD_MS = 30 * 1000;  // 30 seconds
+constexpr int ENCODER_MIN = 0;                                // Min position
+constexpr int ENCODER_MAX = 255;                              // Max position
 
 // Globals
 int encoderPosition = 0;
@@ -75,7 +75,7 @@ void connectWiFi() {
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     while (WiFi.status() != WL_CONNECTED) {
         Serial.println("Connecting to WiFi...");
-        delay(500);
+        delay(100);
     }
     Serial.println("Connected to WiFi");
     Serial.println(WiFi.localIP());
@@ -123,8 +123,7 @@ void setup() {
     // Setup encoder and button pins
     pinMode(PIN_A, INPUT);  // Built-in pull-up resistors in the encoder
     pinMode(PIN_B, INPUT);  // Built-in pull-up resistors in the encoder
-    pinMode(PIN_BUTTON,
-            INPUT);  // Built-in pull-up resistors in the encoder button
+    pinMode(PIN_BUTTON, INPUT);  // Built-in pull-up resistors in the encoder button
 
     attachInterrupt(digitalPinToInterrupt(PIN_A), updateEncoder, CHANGE);
     attachInterrupt(digitalPinToInterrupt(PIN_B), updateEncoder, CHANGE);
