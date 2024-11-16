@@ -6,9 +6,9 @@
 #include <Preferences.h>  // Include Preferences library for NVS
 
 // Define the pins for the encoder
-const int PIN_A = GPIO_NUM_1;       // S1
-const int PIN_B = GPIO_NUM_2;       // S2
-const int PIN_BUTTON = GPIO_NUM_0;  // Key
+const int PIN_A = GPIO_NUM_0;       // S1
+const int PIN_B = GPIO_NUM_1;       // S2
+const int PIN_BUTTON = GPIO_NUM_2;  // Key
 
 // WiFi and MQTT settings
 const char* WIFI_SSID = "Aether";
@@ -23,7 +23,7 @@ const char* MQTT_PASSWORD = "r37zQSVw";
 // Initialize encoder position and activity timer
 int encoderPosition = 0;
 unsigned long lastActivityTime = 0;
-const unsigned long inactivityThreshold = 5000;  // 5 seconds threshold
+const unsigned long inactivityThreshold = 30000;  // 30 seconds
 
 // Initialize RotaryEncoder object
 RotaryEncoder encoder(PIN_A, PIN_B, RotaryEncoder::LatchMode::TWO03);
@@ -112,6 +112,16 @@ void loop() {
     mqttClient.loop();
 
     int newPosition = encoder.getPosition();
+
+    if (newPosition < 0) {
+        newPosition = 0;
+        encoder.setPosition(0);
+    }
+    if (newPosition > 255) {
+        newPosition = 255;
+        encoder.setPosition(255);
+    }
+
     if (newPosition != lastPosition) {
         encoderPosition = newPosition;
         String direction = (encoder.getDirection() == RotaryEncoder::Direction::CLOCKWISE) ? "clockwise" : "counterclockwise";
@@ -155,5 +165,5 @@ void loop() {
         esp_deep_sleep_start();
     }
 
-    delay(100);  // Debounce delay
+    delay(250);  // Debounce delay
 }
