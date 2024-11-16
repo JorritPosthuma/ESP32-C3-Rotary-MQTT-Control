@@ -4,6 +4,7 @@
 #include <RotaryEncoder.h>
 #include <WiFi.h>
 #include <esp_sleep.h>
+#include <ArduinoJson.h>
 
 // Encoder pins
 constexpr int PIN_A = GPIO_NUM_0;       // Encoder channel A
@@ -39,14 +40,18 @@ void IRAM_ATTR updateEncoder() {
     lastActivityTime = millis();
 }
 
-// Publish MQTT configuration for HA discovery
+// Publish MQTT configuration for Home Assistant discovery
 void publishConfig() {
-    String configPayload =
-        String("{") + "\"name\": \"Rotary Encoder\"," +
-        "\"unique_id\": \"rotary_encoder\"," + "\"state_topic\": \"" +
-        String(MQTT_STATE_TOPIC) + "\"," +
-        "\"value_template\": \"{{ value_json.position }}\"" + "}";
-    mqttClient.publish(MQTT_CONFIG_TOPIC, configPayload.c_str(), true);
+    JsonDocument configDoc;
+    configDoc["name"] = "Rotary Encoder";
+    configDoc["unique_id"] = "rotary_encoder";
+    configDoc["state_topic"] = MQTT_STATE_TOPIC;
+    configDoc["value_template"] = "{{ value_json.position }}";
+
+    char configPayload[256];
+    serializeJson(configDoc, configPayload);  // Serialize JSON to string
+
+    mqttClient.publish(MQTT_CONFIG_TOPIC, configPayload, true);
 }
 
 // Reconnect to MQTT broker
@@ -149,10 +154,17 @@ void loop() {
     // Handle encoder position changes
     int newPosition = encoder.getPosition();
     newPosition = constrain(newPosition, ENCODER_MIN, ENCODER_MAX);
+
     if (newPosition != lastPosition) {
         encoderPosition = newPosition;
-        String payload = "{\"position\":" + String(encoderPosition) + "}";
-        mqttClient.publish(MQTT_STATE_TOPIC, payload.c_str());
+
+        JsonDocument stateDoc;
+        stateDoc["position"] = encoderPosition;
+
+        char statePayload[128];
+        serializeJson(stateDoc, statePayload);  // Serialize JSON to string
+
+        mqttClient.publish(MQTT_STATE_TOPIC, statePayload);
 
         Serial.print("Encoder position: ");
         Serial.println(encoderPosition);
