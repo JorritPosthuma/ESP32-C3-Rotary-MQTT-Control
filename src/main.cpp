@@ -193,9 +193,6 @@ void setup() {
     // delay(2000);
     // Serial.println("Booting up...");
 
-    // Initialize preferences
-    preferences.begin("encoder", false);
-
     // Setup encoder and button pins
     pinMode(PIN_A, INPUT);
     pinMode(PIN_B, INPUT);
@@ -205,6 +202,12 @@ void setup() {
     if (esp_reset_reason() == ESP_RST_POWERON && digitalRead(PIN_BUTTON) == LOW) {
         resetNVS();
     }
+
+    // Initialize preferences
+    preferences.begin("encoder", false);
+
+    encoderPosition = preferences.getInt("position", 0);
+    encoder.setPosition(encoderPosition);
 
     // Attach interrupts for the encoder
     attachInterrupt(digitalPinToInterrupt(PIN_A), updateEncoder, CHANGE);
@@ -218,9 +221,6 @@ void setup() {
     entityName = preferences.getString("entity_name", entityName);
     encoderMin = preferences.getInt("encoder_min", encoderMin);
     encoderMax = preferences.getInt("encoder_max", encoderMax);
-
-    encoderPosition = preferences.getInt("position", 0);
-    encoder.setPosition(encoderPosition);
 
     // Configure WiFi and MQTT
     configureWiFiAndMQTT();
