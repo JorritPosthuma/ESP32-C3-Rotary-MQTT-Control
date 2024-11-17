@@ -11,15 +11,24 @@ constexpr int PIN_A = GPIO_NUM_0;       // Encoder channel A
 constexpr int PIN_B = GPIO_NUM_1;       // Encoder channel B
 constexpr int PIN_BUTTON = GPIO_NUM_2;  // Encoder button
 
-// WiFi and MQTT configuration
+// WiFi configuration
 constexpr char WIFI_SSID[] = "Aether";
 constexpr char WIFI_PASSWORD[] = "cityoftheamstel";
+
+// MQTT configuration
 constexpr char MQTT_SERVER[] = "192.168.1.174";  // MQTT broker IP
 constexpr int MQTT_PORT = 1883;
 constexpr char MQTT_USER[] = "mqtt";
 constexpr char MQTT_PASSWORD[] = "r37zQSVw";
-constexpr char MQTT_CONFIG_TOPIC[] = "homeassistant/sensor/encoder/config";
-constexpr char MQTT_STATE_TOPIC[] = "homeassistant/sensor/encoder/state";
+
+// MQTT topics and unique IDs
+constexpr char MQTT_ENCODER_CONFIG_TOPIC[] = "homeassistant/sensor/encoder_position/config";
+constexpr char MQTT_ENCODER_STATE_TOPIC[] = "homeassistant/sensor/encoder_position/state";
+constexpr char MQTT_BUTTON_CONFIG_TOPIC[] = "homeassistant/sensor/encoder_button/config";
+constexpr char MQTT_BUTTON_STATE_TOPIC[] = "homeassistant/sensor/encoder_button/state";
+
+constexpr char ENCODER_UNIQUE_ID[] = "rotary_encoder_position";
+constexpr char BUTTON_UNIQUE_ID[] = "rotary_encoder_button";
 
 // Encoder and inactivity settings
 constexpr unsigned long INACTIVITY_THRESHOLD_MS = 30 * 1000;  // 30 seconds
@@ -42,16 +51,26 @@ void IRAM_ATTR updateEncoder() {
 
 // Publish MQTT configuration for Home Assistant discovery
 void publishConfig() {
+    // Configuration for the encoder position
     JsonDocument configDoc;
-    configDoc["name"] = "Rotary Encoder";
-    configDoc["unique_id"] = "rotary_encoder";
-    configDoc["state_topic"] = MQTT_STATE_TOPIC;
+    configDoc["name"] = "Rotary Encoder Position";
+    configDoc["unique_id"] = ENCODER_UNIQUE_ID;
+    configDoc["state_topic"] = MQTT_ENCODER_STATE_TOPIC;
     configDoc["value_template"] = "{{ value_json.position }}";
 
     char configPayload[256];
     serializeJson(configDoc, configPayload);  // Serialize JSON to string
+    mqttClient.publish(MQTT_ENCODER_CONFIG_TOPIC, configPayload, true);
 
-    mqttClient.publish(MQTT_CONFIG_TOPIC, configPayload, true);
+    // Configuration for the button state
+    configDoc.clear();
+    configDoc["name"] = "Encoder Button State";
+    configDoc["unique_id"] = BUTTON_UNIQUE_ID;
+    configDoc["state_topic"] = MQTT_BUTTON_STATE_TOPIC;
+    configDoc["value_template"] = "{{ value_json.button }}";
+
+    serializeJson(configDoc, configPayload);
+    mqttClient.publish(MQTT_BUTTON_CONFIG_TOPIC, configPayload, true);
 }
 
 // Reconnect to MQTT broker
@@ -136,6 +155,7 @@ void setup() {
 
     // Turn on the LED
     pinMode(8, OUTPUT);
+    digitalWrite(8, HIGH);
 
     Serial.println("Setup complete");
 }
@@ -143,6 +163,7 @@ void setup() {
 // Main loop
 void loop() {
     static int lastPosition = encoderPosition;
+    static bool lastButtonState = HIGH;
 
     encoder.tick();
     if (!mqttClient.connected()) {
@@ -163,7 +184,7 @@ void loop() {
         char statePayload[128];
         serializeJson(stateDoc, statePayload);  // Serialize JSON to string
 
-        mqttClient.publish(MQTT_STATE_TOPIC, statePayload);
+        mqttClient.publish(MQTT_ENCODER_STATE_TOPIC, statePayload);
 
         Serial.print("Encoder position: ");
         Serial.println(encoderPosition);
@@ -172,10 +193,22 @@ void loop() {
         lastPosition = newPosition;
     }
 
-    // Handle button press
-    if (digitalRead(PIN_BUTTON) == LOW) {
-        Serial.println("Button pressed");
+    // Handle button state
+    bool buttonState = digitalRead(PIN_BUTTON) == LOW;  // LOW means pressed
+    if (buttonState != lastButtonState) {
+        JsonDocument buttonDoc;
+        buttonDoc["button"] = buttonState;
+
+        char buttonPayload[128];
+        serializeJson(buttonDoc, buttonPayload);
+
+        mqttClient.publish(MQTT_BUTTON_STATE_TOPIC, buttonPayload);
+
+        Serial.print("Button state: ");
+        Serial.println(buttonState ? "pressed" : "released");
+
         lastActivityTime = millis();
+        lastButtonState = buttonState;
     }
 
     // Handle inactivity
