@@ -7,7 +7,6 @@
 #include <WiFiManager.h>  // WiFiManager library
 #include <esp_sleep.h>
 #include <nvs_flash.h>
-#include "esp_task_wdt.h"
 
 // Encoder pins
 constexpr int PIN_A = GPIO_NUM_0;       // Encoder channel A
@@ -32,7 +31,6 @@ String mqttButtonStateTopic;
 
 // Encoder and inactivity settings
 constexpr unsigned long INACTIVITY_THRESHOLD_MS = 30 * 1000;  // 30 seconds
-constexpr unsigned long BUTTON_HOLD_TIME_MS = 5000;           // 5 seconds
 
 // Globals
 int encoderPosition = 0;
@@ -46,8 +44,6 @@ Preferences preferences;
 
 // Function to reset NVS storage
 void resetNVS() {
-    esp_task_wdt_init(10, true);  // Set timeout to 10 seconds
-
     Serial.println("Resetting NVS storage...");
     preferences.end();  // Close preferences
     nvs_flash_erase();  // Erase all NVS storage
@@ -58,7 +54,6 @@ void resetNVS() {
 // Encoder interrupt handler
 void IRAM_ATTR updateEncoder() {
     lastActivityTime = millis();
-
     encoder.tick();
 }
 
@@ -108,8 +103,8 @@ void configureWiFiAndMQTT() {
     // Custom parameters for MQTT configuration
     WiFiManagerParameter custom_mqtt_server("mqtt_server", "MQTT Server IP", mqttServer.c_str(), 40);
     WiFiManagerParameter custom_mqtt_user("mqtt_user", "MQTT Username", mqttUsername.c_str(), 40);
-    WiFiManagerParameter custom_mqtt_password("mqtt_pass", "MQTT Password",   mqttPassword.c_str(), 40);
-    WiFiManagerParameter custom_entity_prefix("entity_prefix", "Entity Prefix",   entityPrefix.c_str(), 40);
+    WiFiManagerParameter custom_mqtt_password("mqtt_pass", "MQTT Password", mqttPassword.c_str(), 40);
+    WiFiManagerParameter custom_entity_prefix("entity_prefix", "Entity Prefix", entityPrefix.c_str(), 40);
     WiFiManagerParameter custom_entity_name("entity_name", "Entity Name", entityName.c_str(), 40);
     WiFiManagerParameter custom_encoder_min("encoder_min", "Encoder Min (-1 for no constraint)", String(encoderMin).c_str(), 10);
     WiFiManagerParameter custom_encoder_max("encoder_max", "Encoder Max (-1 for no constraint)", String(encoderMax).c_str(), 10);
@@ -173,9 +168,7 @@ void enterDeepSleep() {
     gpio_deep_sleep_hold_dis();
 
     // Configure GPIOs as wakeup sources (active LOW)
-    esp_deep_sleep_enable_gpio_wakeup(
-        (1ULL << PIN_A) | (1ULL << PIN_B) | (1ULL << PIN_BUTTON),
-        ESP_GPIO_WAKEUP_GPIO_LOW);
+    esp_deep_sleep_enable_gpio_wakeup((1ULL << PIN_A) | (1ULL << PIN_B) | (1ULL << PIN_BUTTON), ESP_GPIO_WAKEUP_GPIO_LOW);
 
     // Optionally isolate GPIOs to minimize power leakage
     esp_sleep_config_gpio_isolate();
@@ -196,16 +189,26 @@ void setup() {
     // Initialize serial
     Serial.begin(115200);
 
+    // // Sleep for a short period to allow serial monitor to connect
+    // delay(2000);
+    // Serial.println("Booting up...");
+
+    // Initialize preferences
+    preferences.begin("encoder", false);
+
     // Setup encoder and button pins
     pinMode(PIN_A, INPUT);
     pinMode(PIN_B, INPUT);
     pinMode(PIN_BUTTON, INPUT);
 
+    // Check if the button is pressed on power-on to reset NVS storage
+    if (esp_reset_reason() == ESP_RST_POWERON && digitalRead(PIN_BUTTON) == LOW) {
+        resetNVS();
+    }
+
+    // Attach interrupts for the encoder
     attachInterrupt(digitalPinToInterrupt(PIN_A), updateEncoder, CHANGE);
     attachInterrupt(digitalPinToInterrupt(PIN_B), updateEncoder, CHANGE);
-
-    // Initialize NVS
-    preferences.begin("encoder", false);
 
     // Load stored values
     mqttServer = preferences.getString("mqtt_server", mqttServer);
@@ -224,7 +227,8 @@ void setup() {
 
     // Turn on the LED
     pinMode(8, OUTPUT);
-    digitalWrite(8, HIGH);
+    digitalWrite(8, LOW);
+
     Serial.println("Setup complete");
 }
 
@@ -248,7 +252,7 @@ void loop() {
     // Handle encoder position changes
     encoder.tick();
     int newPosition = encoder.getPosition();
-    
+
     // If constraining is enabled
     if (encoderMin != encoderMax) {
         int constrainedPosition = constrain(newPosition, encoderMin, encoderMax);
@@ -258,7 +262,7 @@ void loop() {
             newPosition = constrainedPosition;
         }
     }
-    
+
     // Publish new position if it has changed
     if (newPosition != lastPosition) {
         encoderPosition = newPosition;
@@ -278,7 +282,7 @@ void loop() {
     }
 
     // Handle button presses
-    bool newButtonState = digitalRead(PIN_BUTTON);
+    bool newButtonState = digitalRead(PIN_BUTTON) == LOW;
 
     if (newButtonState != buttonState) {
         buttonState = newButtonState;
