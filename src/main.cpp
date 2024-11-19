@@ -64,7 +64,6 @@ void publishConfig() {
     configDoc["name"] = entityName + " Position";
     configDoc["unique_id"] = entityPrefix + "_position";
     configDoc["state_topic"] = mqttEncoderStateTopic.c_str();
-    configDoc["value_template"] = "{{ value_json.position }}";
 
     char configPayload[256];
     serializeJson(configDoc, configPayload);
@@ -75,7 +74,6 @@ void publishConfig() {
     configDoc["name"] = entityName + " Button";
     configDoc["unique_id"] = entityPrefix + "_button";
     configDoc["state_topic"] = mqttButtonStateTopic.c_str();
-    configDoc["value_template"] = "{{ value_json.button }}";
 
     serializeJson(configDoc, configPayload);
     mqttClient.publish(mqttButtonConfigTopic.c_str(), configPayload, true);
@@ -234,8 +232,6 @@ void setup() {
 
 // Main loop
 void loop() {
-    static int lastPosition = encoderPosition;
-
     // Handle inactivity
     if (millis() - lastActivityTime > INACTIVITY_THRESHOLD_MS) {
         enterDeepSleep();
@@ -264,39 +260,23 @@ void loop() {
     }
 
     // Publish new position if it has changed
-    if (newPosition != lastPosition) {
+    if (newPosition != encoderPosition) {
         encoderPosition = newPosition;
-
-        JsonDocument stateDoc;
-        stateDoc["position"] = encoderPosition;
-
-        char statePayload[128];
-        serializeJson(stateDoc, statePayload);
-
-        mqttClient.publish(mqttEncoderStateTopic.c_str(), statePayload);
+        mqttClient.publish(mqttEncoderStateTopic.c_str(), String(encoderPosition).c_str());
 
         Serial.print("Encoder position: ");
         Serial.println(encoderPosition);
-
-        lastPosition = newPosition;
     }
 
     // Handle button presses
     bool newButtonState = digitalRead(PIN_BUTTON) == LOW;
-
     if (newButtonState != buttonState) {
+        lastActivityTime = millis();
         buttonState = newButtonState;
-
-        JsonDocument buttonDoc;
-        buttonDoc["button"] = buttonState;
-
-        char buttonPayload[128];
-        serializeJson(buttonDoc, buttonPayload);
-
-        mqttClient.publish(mqttButtonStateTopic.c_str(), buttonPayload);
+        mqttClient.publish(mqttButtonStateTopic.c_str(), buttonState ? "1" : "0");
 
         Serial.print("Button state: ");
-        Serial.println(buttonState ? "ON" : "OFF");
+        Serial.println(buttonState ? "Pressed" : "Released");
     }
 
     delay(250);
