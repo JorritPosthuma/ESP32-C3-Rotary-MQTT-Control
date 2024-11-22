@@ -158,6 +158,7 @@ void configureWiFiAndMQTT() {
 
     // Start server
     server.begin();
+    Serial.println("WebSerial accessible at http://" + WiFi.localIP().toString() + "/webserial");
 
     // Save configuration values
     mqttServer = custom_mqtt_server.getValue();
@@ -192,6 +193,10 @@ void configureWiFiAndMQTT() {
 
 // Enter deep sleep after inactivity
 void enterDeepSleep() {
+    if (WebSerial._ws->count() > 0) {
+        return;
+    }
+
     print("Entering deep sleep due to inactivity...");
 
     // Save encoder position to NVS
