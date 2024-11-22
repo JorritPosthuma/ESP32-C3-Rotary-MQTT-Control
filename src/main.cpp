@@ -99,7 +99,7 @@ void publishConfig() {
 }
 
 // Reconnect to MQTT broker
-void reconnectMQTT() {
+void connectMQTT() {
     while (!mqttClient.connected()) {
         println("Attempting MQTT connection...");
         if (mqttClient.connect("BigButtonClient", mqttUsername.c_str(), mqttPassword.c_str())) {
@@ -186,7 +186,7 @@ void configureWiFiAndMQTT() {
 
     // Connect to MQTT broker
     mqttClient.setServer(mqttServer.c_str(), MQTT_PORT);
-    reconnectMQTT();
+    connectMQTT();
 
     Serial.println("WiFi and MQTT configured successfully.");
 }
