@@ -1,17 +1,24 @@
 #include <Arduino.h>
-#include <ArduinoJson.h>
 #include <Preferences.h>
-#include <PubSubClient.h>
-#include <RotaryEncoder.h>
-#include <WiFi.h>
-#include <WiFiManager.h>  // WiFiManager library
 #include <esp_sleep.h>
 #include <nvs_flash.h>
+#include <WiFi.h>
+#include <WiFiManager.h>
+
+#include <RotaryEncoder.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
+
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <WebSerial.h>
 
 // Encoder pins
 constexpr int PIN_A = GPIO_NUM_0;       // Encoder channel A
 constexpr int PIN_B = GPIO_NUM_1;       // Encoder channel B
 constexpr int PIN_BUTTON = GPIO_NUM_2;  // Encoder button
+
+AsyncWebServer server(80);
 
 // MQTT topics and unique IDs (dynamic configuration later)
 String mqttServer;
@@ -42,9 +49,21 @@ WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 Preferences preferences;
 
+// Unified print function
+void print(const String &message) {
+    Serial.println(message);     // Print to Serial
+    WebSerial.println(message);  // Print to WebSerial
+}
+
+// Unified print function without newline
+void println(const String &message) {
+    Serial.print(message);     // Print to Serial
+    WebSerial.print(message);  // Print to WebSerial
+}
+
 // Function to reset NVS storage
 void resetNVS() {
-    Serial.println("Resetting NVS storage...");
+    print("Resetting NVS storage...");
     preferences.end();  // Close preferences
     nvs_flash_erase();  // Erase all NVS storage
     nvs_flash_init();   // Reinitialize NVS
@@ -82,13 +101,12 @@ void publishConfig() {
 // Reconnect to MQTT broker
 void reconnectMQTT() {
     while (!mqttClient.connected()) {
-        Serial.print("Attempting MQTT connection...");
+        println("Attempting MQTT connection...");
         if (mqttClient.connect("BigButtonClient", mqttUsername.c_str(), mqttPassword.c_str())) {
-            Serial.println("Connected to MQTT broker");
+            print("Connected to MQTT broker");
             publishConfig();
         } else {
-            Serial.print("Failed, rc=");
-            Serial.println(mqttClient.state());
+            print("Failed, rc=" + String(mqttClient.state()));
             delay(5000);
         }
     }
@@ -121,6 +139,25 @@ void configureWiFiAndMQTT() {
         Serial.println("Failed to connect. Restarting...");
         ESP.restart();
     }
+
+    // Initialize the web server
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(200, "text/plain",
+                      "Hi! This is WebSerial demo. You can access webserial interface at http://" + WiFi.localIP().toString() + "/webserial");
+    });
+
+    // WebSerial is accessible at "<IP Address>/webserial" in browser
+    WebSerial.begin(&server);
+
+    /* Attach Message Callback */
+    WebSerial.onMessage([&](uint8_t *data, size_t len) {
+        Serial.printf("Received %u bytes from WebSerial: ", len);
+        Serial.write(data, len);
+        Serial.println();
+    });
+
+    // Start server
+    server.begin();
 
     // Save configuration values
     mqttServer = custom_mqtt_server.getValue();
@@ -155,13 +192,12 @@ void configureWiFiAndMQTT() {
 
 // Enter deep sleep after inactivity
 void enterDeepSleep() {
-    Serial.println("Entering deep sleep due to inactivity...");
+    print("Entering deep sleep due to inactivity...");
 
     // Save encoder position to NVS
     encoder.tick();
     preferences.putInt("position", encoder.getPosition());
     preferences.end();
-
     // Disable GPIO hold to reduce power consumption
     gpio_deep_sleep_hold_dis();
 
@@ -176,7 +212,7 @@ void enterDeepSleep() {
     gpio_set_direction(static_cast<gpio_num_t>(PIN_B), GPIO_MODE_INPUT);
     gpio_set_direction(static_cast<gpio_num_t>(PIN_BUTTON), GPIO_MODE_INPUT);
 
-    Serial.println("GPIO wakeup sources configured. Going to deep sleep...");
+    print("GPIO wakeup sources configured. Going to deep sleep...");
 
     // Start deep sleep
     esp_deep_sleep_start();
@@ -237,7 +273,7 @@ void setup() {
     pinMode(8, OUTPUT);
     digitalWrite(8, LOW);
 
-    Serial.println("Setup complete");
+    print("Setup complete");
 }
 
 // Main loop
@@ -273,20 +309,15 @@ void loop() {
     if (newPosition != encoderPosition) {
         encoderPosition = newPosition;
         mqttClient.publish(mqttEncoderStateTopic.c_str(), String(encoderPosition).c_str());
-
-        Serial.print("Encoder position: ");
-        Serial.println(encoderPosition);
+        print("Encoder position: " + String(encoderPosition));
     }
 
     // Handle button presses
     bool newButtonState = digitalRead(PIN_BUTTON) == LOW;
     if (newButtonState != buttonState) {
-        lastActivityTime = millis();
         buttonState = newButtonState;
         mqttClient.publish(mqttButtonStateTopic.c_str(), buttonState ? "1" : "0");
-
-        Serial.print("Button state: ");
-        Serial.println(buttonState ? "Pressed" : "Released");
+        print("Button state: " + String(buttonState ? "Pressed" : "Released"));
     }
 
     delay(250);
