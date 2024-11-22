@@ -223,6 +223,16 @@ void setup() {
     // Configure WiFi and MQTT
     configureWiFiAndMQTT();
 
+    // Check if wakeup was caused specifically by the button
+    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_GPIO) {
+        uint64_t wakeupPins = esp_sleep_get_gpio_wakeup_status();
+        if (wakeupPins & (1ULL << PIN_BUTTON)) {
+            Serial.println("Wakeup caused by button press, sending button state...");
+            mqttClient.publish(mqttButtonStateTopic.c_str(), "1");
+            buttonState = true;
+        }
+    }
+
     // Turn on the LED
     pinMode(8, OUTPUT);
     digitalWrite(8, LOW);
