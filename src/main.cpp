@@ -18,6 +18,7 @@ constexpr int PIN_A = GPIO_NUM_0;       // Encoder channel A
 constexpr int PIN_B = GPIO_NUM_1;       // Encoder channel B
 constexpr int PIN_BUTTON = GPIO_NUM_2;  // Encoder button
 
+// WebSerial settings
 AsyncWebServer server(80);
 
 // MQTT topics and unique IDs (dynamic configuration later)
@@ -37,11 +38,13 @@ String mqttButtonConfigTopic;
 String mqttButtonStateTopic;
 
 // Encoder and inactivity settings
-constexpr unsigned long INACTIVITY_THRESHOLD_MS = 30 * 1000;  // 30 seconds
+constexpr unsigned long INACTIVITY_THRESHOLD_MS = 30 * 1000;   // 30 seconds
+constexpr unsigned long MQTT_DISPATCH_INTERVAL_MS = 1 * 1000;  // 1 second
 
 // Globals
 int encoderPosition = 0;
 unsigned long lastActivityTime = 0;
+unsigned long lastMQTTDispatch = 0;
 bool buttonState = false;
 
 RotaryEncoder encoder(PIN_A, PIN_B, RotaryEncoder::LatchMode::TWO03);
@@ -122,8 +125,8 @@ void configureWiFiAndMQTT() {
     WiFiManagerParameter custom_mqtt_password("mqtt_pass", "MQTT Password", mqttPassword.c_str(), 40);
     WiFiManagerParameter custom_entity_prefix("entity_prefix", "Entity Prefix", entityPrefix.c_str(), 40);
     WiFiManagerParameter custom_entity_name("entity_name", "Entity Name", entityName.c_str(), 40);
-    WiFiManagerParameter custom_encoder_min("encoder_min", "Encoder Min (-1 for no constraint)", String(encoderMin).c_str(), 10);
-    WiFiManagerParameter custom_encoder_max("encoder_max", "Encoder Max (-1 for no constraint)", String(encoderMax).c_str(), 10);
+    WiFiManagerParameter custom_encoder_min("encoder_min", "Encoder Min (equal to Max for no constraint)", String(encoderMin).c_str(), 10);
+    WiFiManagerParameter custom_encoder_max("encoder_max", "Encoder Max (equal to Min for no constraint)", String(encoderMax).c_str(), 10);
 
     // Add parameters to the WiFiManager
     wifiManager.addParameter(&custom_mqtt_server);
@@ -143,7 +146,7 @@ void configureWiFiAndMQTT() {
     // Initialize the web server
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(200, "text/plain",
-                      "Hi! This is WebSerial demo. You can access webserial interface at http://" + WiFi.localIP().toString() + "/webserial");
+                      "You can access webserial interface at http://" + WiFi.localIP().toString() + "/webserial");
     });
 
     // WebSerial is accessible at "<IP Address>/webserial" in browser
@@ -193,7 +196,7 @@ void configureWiFiAndMQTT() {
 
 // Enter deep sleep after inactivity
 void enterDeepSleep() {
-    if (WebSerial._ws->count() > 0) {
+    if (WebSerial.getConnectionCount() > 0) {
         return;
     }
 
@@ -283,38 +286,42 @@ void setup() {
 
 // Main loop
 void loop() {
+    unsigned long currentTime = millis();
+
     // Handle inactivity
-    if (millis() - lastActivityTime > INACTIVITY_THRESHOLD_MS) {
+    if (currentTime - lastActivityTime > INACTIVITY_THRESHOLD_MS) {
         enterDeepSleep();
     }
 
-    // Only continue if we have a valid MQTT connection
-    if (!mqttClient.connected()) {
+    // Make sure we're still connected to the MQTT broker
+    if (!mqttClient.loop()) {
         return;
     }
 
-    // Make sure we're still connected to the MQTT broker
-    mqttClient.loop();
-
     // Handle encoder position changes
     encoder.tick();
-    int newPosition = encoder.getPosition();
 
-    // If constraining is enabled
-    if (encoderMin != encoderMax) {
-        int constrainedPosition = constrain(newPosition, encoderMin, encoderMax);
+    if (currentTime - lastMQTTDispatch > MQTT_DISPATCH_INTERVAL_MS) {
+        int newPosition = encoder.getPosition();
 
-        if (constrainedPosition != newPosition) {
-            encoder.setPosition(constrainedPosition);
-            newPosition = constrainedPosition;
+        // If constraining is enabled
+        if (encoderMin != encoderMax) {
+            int constrainedPosition = constrain(newPosition, encoderMin, encoderMax);
+
+            if (constrainedPosition != newPosition) {
+                encoder.setPosition(constrainedPosition);
+                newPosition = constrainedPosition;
+            }
         }
-    }
 
-    // Publish new position if it has changed
-    if (newPosition != encoderPosition) {
-        encoderPosition = newPosition;
-        mqttClient.publish(mqttEncoderStateTopic.c_str(), String(encoderPosition).c_str());
-        print("Encoder position: " + String(encoderPosition));
+        // Publish new position if it has changed
+        if (newPosition != encoderPosition) {
+            encoderPosition = newPosition;
+            mqttClient.publish(mqttEncoderStateTopic.c_str(), String(encoderPosition).c_str());
+            print("Encoder position: " + String(encoderPosition));
+        }
+
+        lastMQTTDispatch = currentTime;
     }
 
     // Handle button presses
@@ -325,5 +332,5 @@ void loop() {
         print("Button state: " + String(buttonState ? "Pressed" : "Released"));
     }
 
-    delay(250);
+    delay(50);
 }

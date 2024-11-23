@@ -1,0 +1,3 @@
+[submodule "lib/WebSerial"]
+	path = lib/WebSerial
+	url = https://github.com/JorritPosthuma/WebSerial
