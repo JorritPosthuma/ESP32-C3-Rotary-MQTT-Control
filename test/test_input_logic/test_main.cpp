@@ -57,6 +57,21 @@ void test_initially_pressed_no_press() {
     TEST_ASSERT_EQUAL(-1, d.update(false, 180));
 }
 
+// A whole tap replayed from the edge ring after the loop was blocked
+void test_replayed_tap_is_reported() {
+    Debouncer d(30, false);
+    TEST_ASSERT_EQUAL(0, d.update(true, 0));
+    TEST_ASSERT_EQUAL(1, d.update(false, 100));
+    TEST_ASSERT_EQUAL(-1, d.update(false, 1000));
+}
+
+// An edge replayed with a timestamp older than the last poll must still be debounced
+void test_older_timestamp_is_not_stable() {
+    Debouncer d(30, false);
+    TEST_ASSERT_EQUAL(0, d.update(true, 1000));
+    TEST_ASSERT_EQUAL(0, d.update(true, 990));
+}
+
 static const uint8_t PINS[3] = {0, 1, 2};
 
 void test_all_high_wake_on_low() {
@@ -93,6 +108,8 @@ int main() {
     RUN_TEST(test_press_after_stable_30ms);
     RUN_TEST(test_release_reported);
     RUN_TEST(test_initially_pressed_no_press);
+    RUN_TEST(test_replayed_tap_is_reported);
+    RUN_TEST(test_older_timestamp_is_not_stable);
     RUN_TEST(test_all_high_wake_on_low);
     RUN_TEST(test_button_low_wakes_high);
     RUN_TEST(test_all_low_wake_on_high);

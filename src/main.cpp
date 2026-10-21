@@ -66,6 +66,12 @@ void setup() {
     digitalWrite(PIN_LED, LOW);  // LED on while awake
     rtcDumpToSerial();
 
+    // A weak battery browns out on the Wi-Fi current spike; retrying would loop until it dies
+    if (rtcCurrentWake().resetReason == ESP_RST_BROWNOUT) {
+        Serial.println("brownout: sleeping without Wi-Fi until touched");
+        finishAndSleep();
+    }
+
     if (!netConnect(WIFI_BUDGET_MS)) {
         Serial.println("wifi failed");
         finishAndSleep();

@@ -12,7 +12,7 @@
 #include "volume_controller.h"
 
 constexpr uint16_t HUB_PORT = 7777;
-constexpr int32_t HUB_CONNECT_TIMEOUT_MS = 1000;
+constexpr int32_t HUB_CONNECT_TIMEOUT_MS = 200;  // a LAN SYN-ACK takes < 10 ms; keeps a dead hub from stalling input
 constexpr uint32_t HUB_RETRY_MS = 2000;
 constexpr int PLAYPAUSE_REPEATS = 3;
 constexpr uint32_t PLAYPAUSE_GAP_MS = 30;
@@ -23,7 +23,8 @@ class VolumeAction : public Action {
         hub_.fromString(HUB_IP);
         strlcpy(ownIp_, WiFi.localIP().toString().c_str(), sizeof(ownIp_));
         volume_.setMax(VOLUME_MAX);
-        connect(nowMs);
+        // Connect from loop() so a wake press goes out before any hub I/O
+        lastAttemptMs_ = nowMs - HUB_RETRY_MS;
     }
 
     void onClicks(int clicks) override { volume_.addClicks(clicks); }
