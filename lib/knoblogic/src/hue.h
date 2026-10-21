@@ -13,7 +13,7 @@ size_t groupActionPath(char *out, size_t cap, const char *key, int group);  // .
 size_t dimBody(char *out, size_t cap, int briInc, int transitionDs);
 size_t onBody(char *out, size_t cap, bool on);
 
-// HTTP/1.1 request with keep-alive. body may be nullptr (no Content-Type/Content-Length).
+// HTTP/1.1 request that asks the bridge to close afterwards. body may be nullptr (no Content-Type/Content-Length).
 size_t buildRequest(char *out, size_t cap, const char *method, const char *host, const char *path, const char *body);
 
 // Reads "any_on" from a group GET reply. False if it is missing (for example an error reply).

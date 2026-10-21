@@ -27,11 +27,11 @@ size_t onBody(char *out, size_t cap, bool on) {
 
 size_t buildRequest(char *out, size_t cap, const char *method, const char *host, const char *path, const char *body) {
     if (!body) {
-        return formatFit(out, cap, "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\n\r\n", method, path, host);
+        return formatFit(out, cap, "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", method, path, host);
     }
     return formatFit(out, cap,
                      "%s %s HTTP/1.1\r\nHost: %s\r\nContent-Type: application/json\r\nContent-Length: %u\r\n"
-                     "Connection: keep-alive\r\n\r\n%s",
+                     "Connection: close\r\n\r\n%s",
                      method, path, host, (unsigned)strlen(body), body);
 }
 

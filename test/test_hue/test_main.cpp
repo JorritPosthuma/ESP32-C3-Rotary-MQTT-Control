@@ -47,7 +47,7 @@ void test_build_request() {
         "Host: 192.168.1.220\r\n"
         "Content-Type: application/json\r\n"
         "Content-Length: 11\r\n"
-        "Connection: keep-alive\r\n"
+        "Connection: close\r\n"
         "\r\n"
         "{\"on\":true}",
         buf);
@@ -58,7 +58,7 @@ void test_build_get_no_body() {
     TEST_ASSERT_EQUAL_STRING(
         "GET /api/k/groups/3 HTTP/1.1\r\n"
         "Host: 192.168.1.220\r\n"
-        "Connection: keep-alive\r\n"
+        "Connection: close\r\n"
         "\r\n",
         buf);
 }

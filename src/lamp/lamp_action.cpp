@@ -9,7 +9,8 @@
 #include "rate_coalescer.h"
 
 constexpr uint16_t HUE_PORT = 80;
-constexpr uint32_t HUE_TIMEOUT_MS = 500;
+constexpr int32_t HUE_CONNECT_TIMEOUT_MS = 500;
+constexpr uint32_t HUE_REPLY_TIMEOUT_MS = 1500;  // the bridge can be slow while it runs transitions
 
 class LampAction : public Action {
    public:
@@ -42,10 +43,9 @@ class LampAction : public Action {
 
     uint32_t firstAckMs() const override { return firstAckMs_; }
 
-    void end() override { client_.stop(); }
+    void end() override {}
 
    private:
-    WiFiClient client_;
     IPAddress bridge_;
     char groupPath_[96];
     char actionPath_[104];
@@ -64,31 +64,41 @@ class LampAction : public Action {
         }
     }
 
-    // One request per connection: the bridge answers with "Connection: close". Returns the
-    // HTTP status (or -1) and points body_ at the response body.
+    // One request per connection; the bridge closes after replying. Returns the HTTP status,
+    // -2 if connecting failed or -1 without a valid reply, and points body_ at the response body.
     int request(const char *method, const char *path, const char *body) {
         body_ = "";
         char request[384];
         size_t length = hue::buildRequest(request, sizeof(request), method, HUE_BRIDGE_IP, path, body);
-        if (length == 0 || !client_.connect(bridge_, HUE_PORT, HUE_TIMEOUT_MS)) return -1;
-        client_.write((const uint8_t *)request, length);
+        if (length == 0) return -1;
+
+        // A fresh client per request: right after the previous close, a reused client can
+        // report "disconnected" before the new reply arrives
+        WiFiClient client;
+        if (!client.connect(bridge_, HUE_PORT, HUE_CONNECT_TIMEOUT_MS)) return -2;
+        client.write((const uint8_t *)request, length);
 
         size_t received = 0;
         uint32_t start = millis();
-        while (millis() - start < HUE_TIMEOUT_MS && (client_.connected() || client_.available())) {
-            int n = client_.read((uint8_t *)response_ + received, sizeof(response_) - 1 - received);
+        while (millis() - start < HUE_REPLY_TIMEOUT_MS && received < sizeof(response_) - 1) {
+            int n = client.read((uint8_t *)response_ + received, sizeof(response_) - 1 - received);
             if (n > 0) {
                 received += n;
-                if (received == sizeof(response_) - 1) break;
+            } else if (received > 0 && !client.connected()) {
+                break;  // only trust "closed" once the reply has started
             } else {
                 delay(1);
             }
         }
-        client_.stop();
+        client.stop();
         response_[received] = 0;
 
         int status = -1;
-        if (sscanf(response_, "HTTP/1.%*d %d", &status) != 1) return -1;
+        if (sscanf(response_, "HTTP/1.%*d %d", &status) != 1) {
+            netLog("hue no reply: %u bytes after %lums: %.40s", (unsigned)received, (unsigned long)(millis() - start),
+                   response_);
+            return -1;
+        }
         const char *separator = strstr(response_, "\r\n\r\n");
         body_ = separator ? separator + 4 : "";
         return status;

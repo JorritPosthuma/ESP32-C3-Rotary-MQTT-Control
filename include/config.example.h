@@ -5,15 +5,20 @@
 #define WIFI_SSID "your-ssid"
 #define WIFI_PASSWORD "your-password"
 
-// Static IP skips DHCP on every wake. Leave KNOB_STATIC_IP empty to use DHCP.
-// Only use a static IP that the router reserves for this knob.
+// Per-knob identity. A static IP skips DHCP on every wake; leave it empty to use DHCP.
+// Only use a static IP that the router reserves for that knob.
+#ifdef KNOB_VARIANT_LAMP
+#define KNOB_NAME "lamp"
 #define KNOB_STATIC_IP ""
+#else
+#define KNOB_NAME "volume"
+#define KNOB_STATIC_IP ""
+#endif
 #define KNOB_GATEWAY "192.168.1.1"
 #define KNOB_SUBNET "255.255.255.0"
 #define KNOB_DNS "192.168.1.1"
 
 // Knob
-#define KNOB_NAME "volume"   // used in UDP log lines
 #define AWAKE_MS 30000       // stay awake this long after the last input
 #define ENCODER_REVERSE 0    // set to 1 if clockwise turns the wrong way
 
