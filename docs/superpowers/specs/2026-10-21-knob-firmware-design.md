@@ -111,7 +111,8 @@ Protocol reference: `/Users/jorrit/Development/Projects/Buchardt/BuchardtBar/doc
 
 ### Network messages (agreed with the BuchardtBar session)
 
-- UDP broadcast to `255.255.255.255:47777`, one ASCII line, optional trailing `\n`. No ack (fire-and-forget).
+- UDP broadcast to the subnet broadcast address (`192.168.1.255`) on port `47777`, one ASCII line, optional trailing `\n`. No ack (fire-and-forget).
+  - Changed during the build from `255.255.255.255`. On macOS, BuchardtBar's wildcard socket holds the port exclusively, and a debug listener can only share it bound to the subnet broadcast address, which never sees limited broadcasts. BuchardtBar receives both.
 - `VOLKNOB/1 PLAYPAUSE <seq>`. `seq` is a uint32 kept in RTC memory, incremented per press. Each message is sent 3× with 30 ms in between. BuchardtBar de-duplicates on (sender IP, seq) within 2 s and ignores lines it does not know.
 - `VOLKNOB/1 LOG <knob-name> <text>` for the wake log. BuchardtBar ignores it; a Mac-side logger listens for debugging.
 - The lamp knob sends only LOG lines.
