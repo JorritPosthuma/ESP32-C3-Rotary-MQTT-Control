@@ -1,0 +1,31 @@
+lib/knoblogic/src/hue.cpp
+  s_888b09838cf939::t_d2b852ce62a49e 30,34
+lib/knoblogic/src/hue.h
+  s_888b09838cf939::t_d2b852ce62a49e 16
+include/config.example.h
+  s_888b09838cf939::t_6e90f93ad4aafa 8-11,13-16
+src/lamp/lamp_action.cpp
+  s_888b09838cf939::t_b6b11aeb97fb33 75-77,79,84,87-88,93
+  s_888b09838cf939::t_23cbeec6312cf1 67-68,73
+  s_888b09838cf939::t_fb8c9c7fdb341d 12-13,78,83,97-101
+  s_888b09838cf939::t_4d43519bdabc5c 46
+  s_888b09838cf939::t_20c70f484cf6a7 74
+test/test_hue/test_main.cpp
+  s_888b09838cf939::t_1ff9808ef8dad1 50,61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "74825c2630152b12a28f500a7c8d6a04427d6bd6",
+  "prompts": {},
+  "sessions": {
+    "s_888b09838cf939": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34ac79ba-8d30-44a0-89c1-f918fa2add05",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jorrit Posthuma <git@jorritposthuma.nl>"
+    }
+  }
+}
