@@ -1,0 +1,53 @@
+lib/knoblogic/src/luci.cpp
+  s_888b09838cf939::t_b423d7a588d673 20-26,28-37,41,43-50,52-55
+test/test_luci_session/test_main.cpp
+  s_888b09838cf939::t_ceb9ffd2fbf805 1-84
+test/test_volume/test_main.cpp
+  s_888b09838cf939::t_f0fdbc306a97f8 109-120,123
+test/test_luci/test_main.cpp
+  s_888b09838cf939::t_be0116d86b8f1f 126,128
+  s_888b09838cf939::t_78d54cf469aedf 167
+  s_888b09838cf939::t_6997c0a4986a55 121-125,127,129-143
+README.md
+  s_888b09838cf939::t_40ba1fbae939d9 1,3,7,9-12,14,16-48
+lib/knoblogic/src/volume_controller.h
+  s_888b09838cf939::t_a3f65c89241c3a 24
+  s_888b09838cf939::t_17a8647f34ce5d 36
+  s_888b09838cf939::t_e847e3e2d52301 11
+include/config.example.h
+  s_888b09838cf939::t_bde2e41204ebf6 23
+src/lamp/lamp_action.cpp
+  s_888b09838cf939::t_377c53ebcac7a0 1-18
+src/volume/volume_action.cpp
+  s_888b09838cf939::t_9e20183fb6a6fa 1-10,12-24,26-56,63-67,69-77,79-85,87-89,91-100,102-110,112-113,119-127
+  s_888b09838cf939::t_702f25b61172ab 78
+  s_888b09838cf939::t_0c5fc19675de35 90
+  s_888b09838cf939::t_3c0217db7ab2f9 68
+  s_888b09838cf939::t_207d48542b082f 25
+  s_888b09838cf939::t_c2acf17788cdb0 114-118
+  s_888b09838cf939::t_596d49ce137007 11,57-62,86,101,111
+lib/knoblogic/src/luci_session.cpp
+  s_888b09838cf939::t_e2954e7731ab32 1-32
+lib/knoblogic/src/luci.h
+  s_888b09838cf939::t_2bf55a0bb606d2 34-35,44-45,47
+lib/knoblogic/src/luci_session.h
+  s_888b09838cf939::t_c209c2effa0da2 1-25
+lib/knoblogic/src/volume_controller.cpp
+  s_888b09838cf939::t_11f879b9a553d4 8,14-17,29,36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "539352889409c12230c648a3df7d13c175d67497",
+  "prompts": {},
+  "sessions": {
+    "s_888b09838cf939": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34ac79ba-8d30-44a0-89c1-f918fa2add05",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jorrit Posthuma <git@jorritposthuma.nl>"
+    }
+  }
+}
