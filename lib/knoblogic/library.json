@@ -1,0 +1,6 @@
+{
+  "name": "knoblogic",
+  "version": "1.0.0",
+  "description": "Platform-independent knob logic, unit-tested on the host",
+  "platforms": "*"
+}
