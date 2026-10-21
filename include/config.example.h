@@ -20,6 +20,7 @@
 // Variant "volume": Buchardt hub (LUCI on TCP 7777)
 #define HUB_IP "192.168.1.47"
 #define VOLUME_STEP 1        // hub volume steps (0..100) per detent
+#define VOLUME_MAX 50        // the knob never sets more; match the hub's max volume setting
 
 // Variant "lamp": Philips Hue bridge (v1 API over HTTP)
 #define HUE_BRIDGE_IP "192.168.1.220"

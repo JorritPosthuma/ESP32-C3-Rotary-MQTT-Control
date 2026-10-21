@@ -1,6 +1,6 @@
-// Temporary Action that only logs input; replaced by the variant actions in Task 7 and 9.
-#include "action.h"
-#include "net.h"
+// Placeholder lamp Action that only logs input; replaced by the Hue action in Task 9.
+#include "../core/action.h"
+#include "../core/net.h"
 
 class NullAction : public Action {
    public:

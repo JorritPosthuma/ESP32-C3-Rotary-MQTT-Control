@@ -1,18 +1,18 @@
 #include "volume_controller.h"
 
-static int clampVolume(int volume) {
-    return volume < 0 ? 0 : (volume > 100 ? 100 : volume);
-}
-
 VolumeController::VolumeController(int step, uint32_t minIntervalMs, uint32_t echoWindowMs)
     : step_(step), minIntervalMs_(minIntervalMs), echoWindowMs_(echoWindowMs) {}
 
 void VolumeController::addClicks(int clicks) {
     if (known_) {
-        target_ = clampVolume(target_ + clicks * step_);
+        target_ = clamp(target_ + clicks * step_);
     } else {
         pendingClicks_ += clicks;
     }
+}
+
+int VolumeController::clamp(int volume) const {
+    return volume < 0 ? 0 : (volume > max_ ? max_ : volume);
 }
 
 bool VolumeController::isOwnEcho(int volume, uint32_t nowMs) const {
@@ -26,14 +26,14 @@ void VolumeController::onHubVolume(int volume, uint32_t nowMs) {
     if (!known_) {
         known_ = true;
         lastSent_ = volume;  // the hub is already there, no need to send it
-        target_ = clampVolume(volume + pendingClicks_ * step_);
+        target_ = clamp(volume + pendingClicks_ * step_);
         pendingClicks_ = 0;
         return;
     }
     if (isOwnEcho(volume, nowMs)) return;
 
     // Clamped by the hub or changed by another client: adopt it, keeping clicks still in flight
-    target_ = clampVolume(volume + (target_ - lastSent_));
+    target_ = clamp(volume + (target_ - lastSent_));
     lastSent_ = volume;
 }
 

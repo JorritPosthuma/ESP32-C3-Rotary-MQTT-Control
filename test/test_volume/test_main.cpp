@@ -106,8 +106,21 @@ void test_fast_spin_coalesces() {
     TEST_ASSERT_EQUAL(-1, v.takeSet(200));
 }
 
+void test_set_max_clamps() {
+    VolumeController v(1);
+    v.setMax(50);
+    v.onHubVolume(49, 0);
+    v.addClicks(3);
+    TEST_ASSERT_EQUAL(50, v.takeSet(0));
+    v.addClicks(5);
+    TEST_ASSERT_EQUAL(-1, v.takeSet(200));
+    v.addClicks(-1);
+    TEST_ASSERT_EQUAL(49, v.takeSet(300));
+}
+
 int main() {
     UNITY_BEGIN();
+    RUN_TEST(test_set_max_clamps);
     RUN_TEST(test_clicks_before_known_applied);
     RUN_TEST(test_step_multiplies);
     RUN_TEST(test_clamp_low_high);

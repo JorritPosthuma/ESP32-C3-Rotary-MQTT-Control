@@ -118,6 +118,29 @@ void test_oversized_frame_split_skipped() {
     TEST_ASSERT_EQUAL(64, m.box);
 }
 
+// The hub sends MB 42 and MB 45 now-playing JSON right after connect: more than the buffer holds
+void test_burst_of_big_frames_in_one_push() {
+    uint8_t stream[800];
+    const uint8_t mb42[] = {0x00, 0x00, 0x01, 0x00, 0x2a, 0x01, 0x15, 0x9b, 0x01, 0x65};
+    const uint8_t mb45[] = {0x00, 0x00, 0x02, 0x00, 0x2d, 0x00, 0x15, 0x9b, 0x01, 0x65};
+    const uint8_t *headers[] = {mb42, mb45};
+    size_t len = 0;
+    for (const uint8_t *header : headers) {
+        memcpy(stream + len, header, 10);
+        memset(stream + len + 10, 'x', 0x165);
+        len += 10 + 0x165;
+    }
+    memcpy(stream + len, VOLUME_REPLY_36, sizeof(VOLUME_REPLY_36));
+    len += sizeof(VOLUME_REPLY_36);
+
+    luci::Decoder d;
+    luci::Message m;
+    d.push(stream, len);
+    TEST_ASSERT_TRUE(d.next(m));
+    TEST_ASSERT_EQUAL(64, m.box);
+    TEST_ASSERT_EQUAL_STRING("36", m.payload);
+}
+
 void test_parse_volume_rejects_other_box() {
     const uint8_t name[] = {0x00, 0x00, 0x01, 0x00, 0x5a, 0x01, 0x06, 0x09, 0x00, 0x0d,
                             'B', 'u', 'c', 'h', 'a', 'r', 'd', 't', ' ', 'A', '5', '0', '0'};
@@ -141,6 +164,7 @@ int main() {
     RUN_TEST(test_decode_two_frames_one_push);
     RUN_TEST(test_oversized_frame_skipped);
     RUN_TEST(test_oversized_frame_split_skipped);
+    RUN_TEST(test_burst_of_big_frames_in_one_push);
     RUN_TEST(test_parse_volume_rejects_other_box);
     return UNITY_END();
 }

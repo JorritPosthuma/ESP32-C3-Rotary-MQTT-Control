@@ -17,46 +17,42 @@ size_t encode(uint8_t type, uint16_t box, const char *payload, uint8_t *out, siz
 }
 
 void Decoder::push(const uint8_t *data, size_t len) {
-    if (skip_) {
-        size_t n = len < skip_ ? len : skip_;
-        skip_ -= n;
-        data += n;
-        len -= n;
-    }
-    size_t room = sizeof(buf_) - len_;
-    if (len > room) len = room;  // only when the caller stops draining; the excess is lost
-    memcpy(buf_ + len_, data, len);
-    len_ += len;
-}
+    for (size_t i = 0; i < len; i++) {
+        if (skip_) {
+            skip_--;
+            continue;
+        }
+        if (len_ == sizeof(buf_)) return;  // only when the caller stops draining; the rest is lost
+        buf_[len_++] = data[i];
 
-void Decoder::consume(size_t n) {
-    memmove(buf_, buf_ + n, len_ - n);
-    len_ -= n;
+        size_t received = len_ - frameStart_;
+        if (received < HEADER_SIZE) continue;
+        size_t length = lengthAt(frameStart_);
+        if (length > MAX_PAYLOAD) {
+            len_ = frameStart_;  // drop the header and skip the payload as it arrives
+            skip_ = length;
+        } else if (received == HEADER_SIZE + length) {
+            frameStart_ = len_;  // frame complete
+        }
+    }
 }
 
 bool Decoder::next(Message &out) {
-    while (len_ >= HEADER_SIZE) {
-        size_t length = (size_t)buf_[8] << 8 | buf_[9];
-        size_t frame = HEADER_SIZE + length;
+    if (frameStart_ == 0) return false;
 
-        if (length > MAX_PAYLOAD) {
-            size_t present = len_ < frame ? len_ : frame;
-            skip_ = frame - present;
-            consume(present);
-            continue;
-        }
-        if (len_ < frame) return false;
+    size_t length = lengthAt(0);
+    size_t frame = HEADER_SIZE + length;
+    out.box = (uint16_t)(buf_[3] << 8 | buf_[4]);
+    out.type = buf_[2];
+    out.status = buf_[5];
+    out.length = (uint16_t)length;
+    memcpy(out.payload, buf_ + HEADER_SIZE, length);
+    out.payload[length] = 0;
 
-        out.box = (uint16_t)(buf_[3] << 8 | buf_[4]);
-        out.type = buf_[2];
-        out.status = buf_[5];
-        out.length = (uint16_t)length;
-        memcpy(out.payload, buf_ + HEADER_SIZE, length);
-        out.payload[length] = 0;
-        consume(frame);
-        return true;
-    }
-    return false;
+    memmove(buf_, buf_ + frame, len_ - frame);
+    len_ -= frame;
+    frameStart_ -= frame;
+    return true;
 }
 
 bool parseVolume(const Message &m, int *volume) {

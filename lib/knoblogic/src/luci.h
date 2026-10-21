@@ -31,7 +31,8 @@ struct Message {
 };
 
 // Reassembles reply frames from a TCP byte stream. Frames with a payload longer than
-// MAX_PAYLOAD (now-playing JSON and the like) are dropped without losing sync.
+// MAX_PAYLOAD (now-playing JSON and the like) are dropped while they stream in, so a burst
+// of them never fills the buffer or loses sync.
 class Decoder {
    public:
     void push(const uint8_t *data, size_t len);
@@ -40,9 +41,10 @@ class Decoder {
    private:
     uint8_t buf_[512];
     size_t len_ = 0;
-    size_t skip_ = 0;  // bytes of a dropped frame still to discard from the stream
+    size_t frameStart_ = 0;  // complete frames end here; the frame being received starts here
+    size_t skip_ = 0;        // bytes of a dropped frame still to discard from the stream
 
-    void consume(size_t n);
+    size_t lengthAt(size_t offset) const { return (size_t)buf_[offset + 8] << 8 | buf_[offset + 9]; }
 };
 
 // True for an MB 64 message with an ASCII integer payload.
