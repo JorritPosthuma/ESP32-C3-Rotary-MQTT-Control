@@ -1,0 +1,31 @@
+test/test_smoke/test_main.cpp
+  s_888b09838cf939::t_b25f183a481530 1-14
+platformio.ini
+  s_888b09838cf939::t_9ffe20a48974ca 1-2,4-5,8-9,12-26
+.gitignore
+  s_888b09838cf939::t_873c12a92a84e0 7-8
+src/main.cpp
+  s_888b09838cf939::t_543da1913421b2 3,5,7
+include/config.example.h
+  s_888b09838cf939::t_389bcd32fc2821 1-30
+lib/knoblogic/library.json
+  s_888b09838cf939::t_180d5219955bed 1-6
+lib/knoblogic/src/knoblogic.h
+  s_888b09838cf939::t_d198240725341e 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c1301e7daabdaadb45e4ed190c2c0319014dbe65",
+  "prompts": {},
+  "sessions": {
+    "s_888b09838cf939": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34ac79ba-8d30-44a0-89c1-f918fa2add05",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jorrit Posthuma <git@jorritposthuma.nl>"
+    }
+  }
+}
