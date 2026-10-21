@@ -1,0 +1,31 @@
+lib/knoblogic/src/debouncer.cpp
+  s_888b09838cf939::t_eec7b86d6b1f3f 1-15
+test/test_input_logic/test_main.cpp
+  s_888b09838cf939::t_c7731d8b81dd63 1-103
+lib/knoblogic/src/detent_decoder.cpp
+  s_888b09838cf939::t_d9dabf41ce36d2 1-25
+lib/knoblogic/src/wake_masks.cpp
+  s_888b09838cf939::t_7e6b498b9a744f 1-18
+lib/knoblogic/src/detent_decoder.h
+  s_888b09838cf939::t_db74572be2b5d4 1-15
+lib/knoblogic/src/debouncer.h
+  s_888b09838cf939::t_2ebb4c7fbf7ac0 1-18
+lib/knoblogic/src/wake_masks.h
+  s_888b09838cf939::t_c2d5d15b8e4e0e 1-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f474c30b5f0d8b1ac6d65b8eeb193740a7ca460c",
+  "prompts": {},
+  "sessions": {
+    "s_888b09838cf939": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34ac79ba-8d30-44a0-89c1-f918fa2add05",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jorrit Posthuma <git@jorritposthuma.nl>"
+    }
+  }
+}
