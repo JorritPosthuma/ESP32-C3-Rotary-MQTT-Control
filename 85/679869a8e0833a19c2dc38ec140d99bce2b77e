@@ -1,0 +1,23 @@
+lib/knoblogic/src/volume_controller.cpp
+  s_888b09838cf939::t_c00d2fd44719ed 1-51
+test/test_volume/test_main.cpp
+  s_888b09838cf939::t_268638591b9b41 1-122
+lib/knoblogic/src/volume_controller.h
+  s_888b09838cf939::t_5dd002a3f6910e 1-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "85679869a8e0833a19c2dc38ec140d99bce2b77e",
+  "prompts": {},
+  "sessions": {
+    "s_888b09838cf939": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34ac79ba-8d30-44a0-89c1-f918fa2add05",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jorrit Posthuma <git@jorritposthuma.nl>"
+    }
+  }
+}
