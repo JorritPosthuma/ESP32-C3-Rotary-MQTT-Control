@@ -54,7 +54,9 @@ static void captureWake() {
 
 void setup() {
     Serial.begin(115200);
-    Serial.setTxTimeoutMs(0);  // never block when no USB host is listening
+    // Bound USB writes when a host stops reading. Not 0: in Arduino-ESP32 3.3.5 a timeout of 0
+    // underflows the retry counter in HWCDC::write, which then blocks until the host reads again.
+    Serial.setTxTimeoutMs(20);
 
     rtcBegin();
     captureWake();
