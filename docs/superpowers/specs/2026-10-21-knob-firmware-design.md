@@ -1,6 +1,13 @@
 # Knob firmware rewrite: design
 
-Date: 2026-10-21. Status: ready for approval.
+Date: 2026-10-21. Status: implemented, in daily use since 2026-10-24.
+
+**Measured on the real knobs (2026-10-21 to 2026-10-24):**
+- Wi-Fi after a wake: 82–177 ms (static IP, cached access point).
+- Volume: the first change lands 0.47 s after touching the knob, hub handshake included. The hub acknowledges each SET in 4–40 ms.
+- Lamp: the bridge acknowledges the first command 0.29–0.72 s after touching the knob. Later dims are held to one per second by the bridge's group rate limit, so the lamp misses the 0.15 s target for later clicks.
+- Soak: zero spontaneous wakes on either knob in 2.7 days. The warm mode was not pursued, because the cold path is at or near the 0.6 s target.
+- Open, hardware: the knobs often go to sleep between two detents (9 of 27 sleeps on the volume knob), leaving a contact closed. Current then flows through the external pull-ups while asleep, which software cannot prevent.
 
 ## Intent
 

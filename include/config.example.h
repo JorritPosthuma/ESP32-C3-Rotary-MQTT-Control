@@ -20,7 +20,7 @@
 
 // Knob
 #define AWAKE_MS 30000       // stay awake this long after the last input
-#define ENCODER_REVERSE 0    // set to 1 if clockwise turns the wrong way
+#define ENCODER_REVERSE 1    // 1 for this knob's wiring; flip if clockwise turns the wrong way
 
 // Variant "volume": Buchardt hub (LUCI on TCP 7777)
 #define HUB_IP "192.168.1.47"
