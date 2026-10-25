@@ -1,0 +1,21 @@
+include/config.example.h
+  s_888b09838cf939::t_4eec4efa06984b 23
+docs/superpowers/specs/2026-10-21-knob-firmware-design.md
+  s_888b09838cf939::t_5fdd98d5dc00f6 3-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6126e8b357c4bf6d8fe8da6f55b7629186a42f93",
+  "prompts": {},
+  "sessions": {
+    "s_888b09838cf939": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34ac79ba-8d30-44a0-89c1-f918fa2add05",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jorrit Posthuma <git@jorritposthuma.nl>"
+    }
+  }
+}
